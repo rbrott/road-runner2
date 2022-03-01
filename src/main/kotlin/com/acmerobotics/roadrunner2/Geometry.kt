@@ -105,24 +105,30 @@ class Transform2<Dst, Src, N : Num<N>> private constructor(
             translation: Vector2<N>
         ) = Transform2<Dst, Src, N>(rotation, translation)
 
-        fun <Dst, Src, N : Num<N>> exp(twist: Twist2<N>) : Transform2<Dst, Src, N> {
-            val (x, y, theta) = twist
-
-            val rotation = Rotation2.exp(theta)
-            val mainDiag = if (theta.value() epsilonEquals 0.0) {
+        // see (133), (134) in https://ethaneade.com/lie.pdf
+        private fun <N : Num<N>> entries(theta: N) : Pair<N, N> {
+            val A = if (theta.value() epsilonEquals 0.0) {
                 1.0 - theta * theta / 6.0
             } else {
                 theta.sin() / theta
             }
-            val altDiag = if (theta.value() epsilonEquals 0.0) {
+            val B = if (theta.value() epsilonEquals 0.0) {
                 theta / 2.0
             } else {
                 (1.0 - theta.cos()) / theta
             }
+            return Pair(A, B)
+        }
 
+        fun <Dst, Src, N : Num<N>> exp(twist: Twist2<N>) : Transform2<Dst, Src, N> {
+            val (x, y, theta) = twist
+
+            val rotation = Rotation2.exp(theta)
+
+            val (A, B) = entries(theta)
             val translation = Vector2(
-                mainDiag * x - altDiag * y,
-                altDiag * x + mainDiag * y
+                A * x - B * y,
+                B * x + A * y
             )
 
             return rotateThenTranslate(rotation, translation)
@@ -140,17 +146,16 @@ class Transform2<Dst, Src, N : Num<N>> private constructor(
 
     fun log(): Twist2<N> {
         val theta = rotation.log()
-        val mainDiag = if (theta.value() epsilonEquals 0.0) {
-            rotation.imag / theta
-        } else {
-            0.5 * theta * rotation.imag / (1.0 - rotation.real)
-        }
-        val altDiag = 0.5 * theta
 
-        val x = mainDiag * translation.x + altDiag * translation.y
-        val y = -altDiag * translation.x + mainDiag * translation.y
+        val (A, B) = entries(theta)
+        val denom = Vector2(A, B).sqrNorm()
 
-        return Twist2(x, y, theta)
+        val (x, y) = translation
+        return Twist2(
+            (A * x + B * y) / denom,
+            (-B * x + A * y) / denom,
+            theta
+        )
     }
 
     operator fun <Src2> minus(other: Transform2<Dst, Src2, N>) = (other.inverse() * this).log()
