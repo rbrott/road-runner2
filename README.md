@@ -1,4 +1,5 @@
 # road-runner2
 
-Check out [the notebook](https://mybinder.org/v2/gh/rbrott/road-runner2/main?labpath=demo.ipynb).
-
+Many ideas from this prototype repository have been incorporated into the [main
+repository](https://github.com/acmerobotics/road-runner), and all future work
+will continue there.
